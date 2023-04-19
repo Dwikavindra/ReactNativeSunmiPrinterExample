@@ -1,15 +1,21 @@
 package com.printersdktest
+
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
-import android.view.View
-import com.facebook.react.bridge.*
+import com.dantsu.escposprinter.EscPosPrinterCommands
+import com.dantsu.escposprinter.connection.tcp.TcpConnection
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
 import com.sunmi.externalprinterlibrary.api.ConnectCallback
 import com.sunmi.externalprinterlibrary.api.SunmiPrinter
 import com.sunmi.externalprinterlibrary.api.SunmiPrinterApi
 
-class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
+class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+    private var promise: Promise? = null
     override fun getName(): String {
         return "PrinterModule"
     }
@@ -64,21 +70,54 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     }
     @ReactMethod
-    fun printImage(base64Image:String,promise:Promise) {
-        try{
-        if(SunmiPrinterApi.getInstance().isConnected) {
-            SunmiPrinterApi.getInstance().printerInit()
-            val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
-            val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
-            val scaledBitmap= Bitmap.createScaledBitmap(bitmap,300,bitmap.height, true)
-            SunmiPrinterApi.getInstance().printBitmap(scaledBitmap,1)
-            SunmiPrinterApi.getInstance().cutPaper(2,2)
-            promise.resolve("Print Success")
-        }
-    } catch (e:Exception){
-        promise.reject("Error: ","Print Failed")
+    fun printImageWithBluetooth(base64Image:String,promise:Promise) {
+        this.promise=promise
+        Thread {
+            try {
+                if (SunmiPrinterApi.getInstance().isConnected) {
+                    SunmiPrinterApi.getInstance().printerInit()
+                    val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
+                    val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
+                    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, 300, bitmap.height, true)
+                    SunmiPrinterApi.getInstance().printBitmap(scaledBitmap, 1)
+                    SunmiPrinterApi.getInstance().cutPaper(2, 2)
+                    promise.resolve("Print Success")
+                }
+            } catch (e: Exception) {
+                promise.reject("Error: ", "Print Failed")
 
-    }
+            }
+        }.start()
     }
 
+    @ReactMethod
+    fun printImageWithTCP(base64Image:String, promise: Promise) {
+        this.promise=promise
+
+        Thread {
+            try {
+                val targetWidth= 600
+                val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
+                val scaledBitmap= Bitmap.createScaledBitmap(bitmap,targetWidth, Math.round(
+                    bitmap.height.toFloat() * targetWidth.toFloat() / bitmap.width.toFloat()
+                ), true)
+
+
+                val printer=EscPosPrinterCommands(TcpConnection("100.96.109.236",  9100,10 ))
+                val printerConnection=TcpConnection("100.96.109.236",  9100,10 )
+                printer.connect()
+                printer.reset()
+                printer.printImage(EscPosPrinterCommands.bitmapToBytes(scaledBitmap))
+                printer.feedPaper(50)
+                printer.cutPaper()
+
+                promise.resolve("Print Completed")
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+                promise.reject("Error",e.toString())
+            }
+        }.start()
+
+}
 }

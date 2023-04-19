@@ -22,4 +22,12 @@ export const SunmiPrintImage = async (base64Image: string) => {
     return error;
   }
 };
+
+export const SunmiPrintImageWithTCPConnection = async (base64Image: string) => {
+  try {
+    return await PrinterModule.printImageWithTCP(base64Image);
+  } catch (error) {
+    return error;
+  }
+};
 export default PrinterModule;

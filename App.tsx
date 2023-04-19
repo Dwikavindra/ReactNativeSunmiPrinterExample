@@ -26,7 +26,7 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 import {base64Image} from './base64Image';
-import PrinterModule from './PrinterModule';
+import PrinterModule, {SunmiPrintImageWithTCPConnection} from './PrinterModule';
 import {
   SunmiSetBTPrinter,
   SunmiConnect,
@@ -99,6 +99,12 @@ function App(): JSX.Element {
             title="Print"
             onPress={async () => {
               const Print = await SunmiPrintImage(base64Image);
+              console.log(Print);
+            }}></Button>
+          <Button
+            title="Print with TCP"
+            onPress={async () => {
+              const Print = await SunmiPrintImageWithTCPConnection(base64Image);
               console.log(Print);
             }}></Button>
         </View>
