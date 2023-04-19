@@ -43,30 +43,36 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     @ReactMethod
     fun connect(promise:Promise) {
-        try{
-        if(!SunmiPrinterApi.getInstance().isConnected) {
-            SunmiPrinterApi.getInstance().connectPrinter(reactApplicationContext.applicationContext, object : ConnectCallback {
+        this.promise=promise
+        Thread {
+            try {
+                if (!SunmiPrinterApi.getInstance().isConnected) {
+                    SunmiPrinterApi.getInstance().connectPrinter(
+                        reactApplicationContext.applicationContext,
+                        object : ConnectCallback {
 
-                override fun onFound() {
-                    promise.resolve("Printer Found")
+                            override fun onFound() {
+                                promise.resolve("Printer Found")
+                            }
+
+                            override fun onUnfound() {
+                                promise.resolve("Printer Not Found")
+                            }
+
+                            override fun onConnect() {
+                                promise.resolve("Printer Connected")
+                            }
+
+                            override fun onDisconnect() {
+                                promise.resolve("Printer Disconnected")
+                            }
+
+                        })
                 }
-
-                override fun onUnfound() {
-                    promise.resolve("Printer Not Found")
-                }
-
-                override fun onConnect() {
-                   promise.resolve("Printer Connected")
-                }
-
-                override fun onDisconnect() {
-                    promise.resolve("Printer Disconnected")
-                }
-
-            })
-        }}catch (e:Exception){
-            promise.resolve(e.toString());
-        }
+            } catch (e: Exception) {
+                promise.resolve(e.toString());
+            }
+        }.start()
 
     }
     @ReactMethod
