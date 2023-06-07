@@ -27,15 +27,9 @@ export const EscPosImageWithTCPConnection = async (
   base64Image: string,
   ipAddress: String,
   port: String,
-  paperWidth: Number,
 ) => {
   try {
-    return await PrinterModule.printImageWithTCP(
-      base64Image,
-      ipAddress,
-      port,
-      paperWidth,
-    );
+    return await PrinterModule.printImageWithTCP(base64Image, ipAddress, port);
   } catch (error) {
     return error;
   }
@@ -62,6 +56,14 @@ export const printImageWithTCP2 = async (
 ) => {
   try {
     return await PrinterModule.printImageWithTCP2(base64Image, ipAddress, port);
+  } catch (error) {
+    return error;
+  }
+};
+
+export const convertHTMLtoBase64 = async (html: string) => {
+  try {
+    return await PrinterModule.convertHTMLtoBase64(html);
   } catch (error) {
     return error;
   }

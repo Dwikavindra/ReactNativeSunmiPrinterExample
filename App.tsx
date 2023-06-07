@@ -9,6 +9,7 @@ import React, {useState} from 'react';
 import {
   Button,
   DeviceEventEmitter,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -19,6 +20,7 @@ import {
 import {Colors, Header} from 'react-native/Libraries/NewAppScreen';
 import {base64Image} from './base64Image';
 import {
+  convertHTMLtoBase64,
   EscPosImageWithTCPConnection,
   printImageWithTCP2,
   startNetworkDiscovery,
@@ -34,6 +36,7 @@ function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const [ipAddress, setIpAddress] = useState<string>('');
   const [port, setPort] = useState<string>('');
+  const [image, setImage] = useState<string>('');
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -80,7 +83,6 @@ function App(): JSX.Element {
                 base64Image,
                 ipAddress,
                 port,
-                80,
               );
               console.log(Print);
             }}
@@ -116,6 +118,52 @@ function App(): JSX.Element {
               const Print = await stopNetworkDiscovery();
               DeviceEventEmitter.removeAllListeners();
               console.log(Print);
+            }}
+          />
+          <Button
+            title="Convert HTML to Image"
+            onPress={async () => {
+              const base64 = await convertHTMLtoBase64(
+                '' +
+                  '<html>\n' +
+                  '<head>\n' +
+                  '<style>\n' +
+                  'body {\n' +
+                  '  background-color: lightblue;\n' +
+                  '}\n' +
+                  '\n' +
+                  'h1 {\n' +
+                  '  text-align: center;\n' +
+                  '}\n' +
+                  '\n' +
+                  'p {\n' +
+                  '  font-family: verdana;\n' +
+                  '  font-size: 20px;\n' +
+                  '}\n' +
+                  'p.korean {\n' +
+                  '  font-family: Single Day;\n' +
+                  '  font-size: 20px;\n' +
+                  '}\n' +
+                  '</style>\n' +
+                  '</head>' +
+                  '<body>' +
+                  '<h1>Hello, world.</h1>' +
+                  '<p>الصفحة الرئيسية \n' + // Arabiac
+                  '<br>你好，世界 \n' + // Chinese
+                  '<br>こんにちは世界 \n' + // Japanese
+                  '<br>Привет мир \n' + // Russian
+                  '<br>नमस्ते दुनिया \n' + //  Hindi
+                  '<p class="korean"><br>안녕하세요 세계</p>' + // if necessary, you can download and install on your environment the Single Day from fonts.google...
+                  '</body>',
+              );
+              setImage(base64);
+            }}
+          />
+
+          <Image
+            style={{width: 576, height: 300, resizeMode: 'contain'}}
+            source={{
+              uri: `data:image/png;base64,${image}`,
             }}
           />
         </View>

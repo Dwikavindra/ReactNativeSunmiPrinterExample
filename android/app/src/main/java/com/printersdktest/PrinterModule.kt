@@ -1,3 +1,4 @@
+
 package com.printersdktest
 
 import android.content.Context
@@ -6,8 +7,6 @@ import android.graphics.BitmapFactory
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Base64
-import com.dantsu.escposprinter.EscPosPrinterCommands
-import com.dantsu.escposprinter.connection.tcp.TcpConnection
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.github.anastaciocintra.escpos.EscPos
@@ -16,11 +15,10 @@ import com.github.anastaciocintra.escpos.image.CoffeeImage
 import com.github.anastaciocintra.escpos.image.EscPosImage
 import com.github.anastaciocintra.escpos.image.RasterBitImageWrapper
 import com.github.anastaciocintra.output.TcpIpOutputStream
-import com.sunmi.externalprinterlibrary.api.ConnectCallback
-import com.sunmi.externalprinterlibrary.api.SunmiPrinter
-import com.sunmi.externalprinterlibrary.api.SunmiPrinterApi
+import com.izettle.html2bitmap.Html2Bitmap
+import com.izettle.html2bitmap.content.WebViewContent
+import java.io.ByteArrayOutputStream
 import java.net.InetAddress
-import kotlin.math.floor
 
 
 class CoffeeImageAndroidImpl(private val bitmap: Bitmap) : CoffeeImage {
@@ -92,7 +90,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
         override fun onServiceFound(p0: NsdServiceInfo?) {
             println("Found")
-            nsdManager?.resolveService(p0,  MyListener())
+            nsdManager?.resolveService(p0,  resolveListener)
 
 
         }
@@ -106,84 +104,39 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return "PrinterModule"
     }
 
-    fun setCloudPrinter() {
-        SunmiPrinterApi.getInstance().setPrinter(SunmiPrinter.SunmiCloudPrinter)
-    }
     @ReactMethod
-    fun setBTPrinter(promise: Promise) {
-        try {
-            val macList = SunmiPrinterApi.getInstance().findBleDevice(reactApplicationContext.applicationContext)
-            if(macList.size > 0) {
-                SunmiPrinterApi.getInstance().setPrinter(SunmiPrinter.SunmiBlueToothPrinter, macList[0])
-            }
-            promise.resolve(macList[0]);
-        }catch (e:ArrayIndexOutOfBoundsException){
-            promise.resolve("Bluetooth Printer Not Found")
-        }catch (e:java.lang.IndexOutOfBoundsException){
-            promise.reject("Error: ","Bluetooth Printer Not Found")
-        }catch (e:Exception) {
-            promise.reject("Error: ", e.toString())
-        }
-
-        }
-
-    @ReactMethod
-    fun connect(promise:Promise) {
+    fun convertHTMLtoBase64(htmlString:String, promise:Promise){
         this.promise=promise
         Thread {
             try {
-                if (!SunmiPrinterApi.getInstance().isConnected) {
-                    SunmiPrinterApi.getInstance().connectPrinter(
-                        reactApplicationContext.applicationContext,
-                        object : ConnectCallback {
+                val bitmap: Bitmap? =
+                    Html2Bitmap.Builder().setContext(reactApplicationContext.applicationContext)
+                        .setContent(WebViewContent.html(htmlString))
+                        .build().bitmap
+                val resizedBitmap = Bitmap.createScaledBitmap(
+                    bitmap as Bitmap,
+                    631,
+                    bitmap.height,
+                    true
+                )/// what works the best so far 80mm
+                val byteArrayOutputStream = ByteArrayOutputStream()
+                resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+                val byteArray = byteArrayOutputStream.toByteArray()
+                val base64String = Base64.encodeToString(byteArray, Base64.DEFAULT)
+                promise.resolve(base64String)
 
-                            override fun onFound() {
-                                promise.resolve("Printer Found")
-                            }
+            }catch(e: java.lang.Exception){
+                e.printStackTrace()
+                promise.reject("Error",e.toString())
 
-                            override fun onUnfound() {
-                                promise.resolve("Printer Not Found")
-                            }
-
-                            override fun onConnect() {
-                                promise.resolve("Printer Connected")
-                            }
-
-                            override fun onDisconnect() {
-                                promise.resolve("Printer Disconnected")
-                            }
-
-                        })
-                }
-            } catch (e: Exception) {
-                promise.resolve(e.toString());
             }
+
         }.start()
+
 
     }
     @ReactMethod
-    fun printImageWithBluetooth(base64Image:String,promise:Promise) {
-        this.promise=promise
-        Thread {
-            try {
-                if (SunmiPrinterApi.getInstance().isConnected) {
-                    SunmiPrinterApi.getInstance().printerInit()
-                    val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
-                    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, 300, bitmap.height, true)
-                    SunmiPrinterApi.getInstance().printBitmap(scaledBitmap, 1)
-                    SunmiPrinterApi.getInstance().cutPaper(2, 2)
-                    promise.resolve("Print Success")
-                }
-            } catch (e: Exception) {
-                promise.reject("Error: ", "Print Failed")
-
-            }
-        }.start()
-    }
-
-    @ReactMethod
-    fun printImageWithTCP(base64Image:String,ipAddress:String,port:String,paperWidth:Int,promise: Promise) {
+    fun printImageWithTCP(base64Image:String,ipAddress:String,port:String,promise: Promise) {
         this.promise=promise
 
         Thread {
@@ -213,7 +166,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         try {
             nsdManager = reactApplicationContext.applicationContext.getSystemService(Context.NSD_SERVICE) as NsdManager
             nsdManager?.discoverServices(
-                "_services._dns-sd._udp",
+             "_afpovertcp._tcp",
                 NsdManager.PROTOCOL_DNS_SD,
                 discoveryListener
             )
