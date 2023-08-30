@@ -5,6 +5,8 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,6 +17,8 @@ import android.graphics.BitmapFactory
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.startActivityForResult
@@ -235,6 +239,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     }
 
     private val receiver = object : BroadcastReceiver() {
+
         override fun onReceive(context: Context, intent: Intent) {
             println("In Broadcast Receiver")
             val action: String? = intent.action
@@ -250,6 +255,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     }else{
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_NAME)
                     }
+
                     val deviceName =device?.name
                     val deviceHardwareAddress = device?.address // MAC address
 
@@ -278,6 +284,43 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         this.reactApplicationContext.registerReceiver(receiver, filter)
         println("Receiver Registered")
         promise.resolve("Success")
+    }
+    val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
+    val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+    private val bluetoothLeScanner = bluetoothAdapter!!.bluetoothLeScanner
+    private var scanning = false
+    private val handler = Handler(Looper.getMainLooper())
+
+    // Stops scanning after 10 seconds.
+    private val SCAN_PERIOD: Long = 10000
+    // Device scan callback.
+
+    private val leScanCallback: ScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            println("Is device null? ${result.device==null}")
+            println("This is BLE Device Address ${result.device.address}")
+            println("This is BLE Device Name ${result.device.name}")
+        }
+    }
+
+    @ReactMethod
+    private fun scanLeDevice(promise:Promise) {
+        Thread {
+            if (!scanning) { // Stops scanning after a pre-defined scan period.
+                handler.postDelayed({
+                    scanning = false
+                    bluetoothLeScanner.stopScan(leScanCallback)
+                }, SCAN_PERIOD)
+                scanning = true
+                bluetoothLeScanner.startScan(leScanCallback)
+                promise.resolve("Success")
+            } else {
+                scanning = false
+                bluetoothLeScanner.stopScan(leScanCallback)
+                promise.resolve("Success")
+            }
+        }.start()
     }
 
 

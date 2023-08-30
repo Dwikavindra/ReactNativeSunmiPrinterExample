@@ -24,6 +24,7 @@ import {
   convertHTMLtoBase64,
   EscPosImageWithTCPConnection,
   printImageWithTCP2,
+  scanLeDevice,
   startBTDiscovery,
   startNetworkDiscovery,
   stopNetworkDiscovery,
@@ -188,6 +189,37 @@ function App(): JSX.Element {
               console.log('This is granted', granted);
               if (granted) {
                 await startBTDiscovery();
+              }
+            }}
+          />
+
+          <Button
+            title="startLEDiscovery"
+            onPress={async () => {
+              const requestBLEPermissions = async () => {
+                const res = await PermissionsAndroid.request(
+                  PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                );
+                await PermissionsAndroid.requestMultiple([
+                  PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                  PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+                ]);
+                console.log(res);
+              };
+              await requestBLEPermissions();
+              const granted = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                {
+                  title: 'Android Scan Permission',
+                  message: 'Scan Bluetooth Permission',
+                  buttonNeutral: 'Ask Me Later',
+                  buttonNegative: 'Cancel',
+                  buttonPositive: 'OK',
+                },
+              );
+              console.log('This is granted', granted);
+              if (granted) {
+                await scanLeDevice();
               }
             }}
           />

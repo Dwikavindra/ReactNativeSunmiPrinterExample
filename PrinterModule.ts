@@ -75,4 +75,11 @@ export const startBTDiscovery = async () => {
     return error;
   }
 };
+export const scanLeDevice = async () => {
+  try {
+    return await PrinterModule.scanLeDevice();
+  } catch (error) {
+    return error;
+  }
+};
 export default PrinterModule;
