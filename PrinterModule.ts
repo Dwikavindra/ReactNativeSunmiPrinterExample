@@ -68,4 +68,11 @@ export const convertHTMLtoBase64 = async (html: string) => {
     return error;
   }
 };
+export const startBTDiscovery = async () => {
+  try {
+    return await PrinterModule.startBTDiscovery();
+  } catch (error) {
+    return error;
+  }
+};
 export default PrinterModule;

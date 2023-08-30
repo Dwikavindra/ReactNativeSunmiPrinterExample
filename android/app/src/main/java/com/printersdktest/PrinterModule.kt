@@ -1,12 +1,25 @@
 
 package com.printersdktest
 
+import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import android.util.Base64
+import androidx.core.app.ActivityCompat
+import androidx.core.app.ActivityCompat.startActivityForResult
+import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.github.anastaciocintra.escpos.EscPos
@@ -219,6 +232,52 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }.start()
 
 
+    }
+
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            println("In Broadcast Receiver")
+            val action: String? = intent.action
+            when(action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    // Discovery has found a device. Get the BluetoothDevice
+                    // object and its info from the Intent.
+                    val device = if (Build.VERSION.SDK_INT >= 33){ // TIRAMISU
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_NAME,
+                            BluetoothDevice::class.java
+                        )
+                    }else{
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_NAME)
+                    }
+                    val deviceName =device?.name
+                    val deviceHardwareAddress = device?.address // MAC address
+
+                    println("This is device name ${device?.name}, and This is device address ${device?.address}")
+                }
+            }
+        }
+    }
+
+    @ReactMethod
+    fun startBTDiscovery(promise: Promise){
+        println("In printer StartBT Discovery")
+        val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+        println("Is bluetooth adapter enabled? ${bluetoothAdapter?.isEnabled}")
+        if (bluetoothAdapter?.isEnabled == false) {
+            println("Bluetooth not Enabled")
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            this.currentActivity?.let { startActivityForResult(it,enableBtIntent, 1,null)
+            }
+        }
+
+        val discovery=bluetoothAdapter!!.startDiscovery()
+        println("Discovery started : ${discovery}")
+        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        this.reactApplicationContext.registerReceiver(receiver, filter)
+        println("Receiver Registered")
+        promise.resolve("Success")
     }
 
 
