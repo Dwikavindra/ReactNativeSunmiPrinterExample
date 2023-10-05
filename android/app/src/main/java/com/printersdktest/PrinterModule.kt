@@ -35,6 +35,7 @@ import com.github.anastaciocintra.output.TcpIpOutputStream
 import com.izettle.html2bitmap.Html2Bitmap
 import com.izettle.html2bitmap.content.WebViewContent
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.InetAddress
 
 
@@ -238,53 +239,8 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     }
 
-    private val receiver = object : BroadcastReceiver() {
 
-        override fun onReceive(context: Context, intent: Intent) {
-            println("In Broadcast Receiver")
-            val action: String? = intent.action
-            when(action) {
-                BluetoothDevice.ACTION_FOUND -> {
-                    // Discovery has found a device. Get the BluetoothDevice
-                    // object and its info from the Intent.
-                    val device = if (Build.VERSION.SDK_INT >= 33){ // TIRAMISU
-                        intent.getParcelableExtra(
-                            BluetoothDevice.EXTRA_NAME,
-                            BluetoothDevice::class.java
-                        )
-                    }else{
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_NAME)
-                    }
 
-                    val deviceName =device?.name
-                    val deviceHardwareAddress = device?.address // MAC address
-
-                    println("This is device name ${device?.name}, and This is device address ${device?.address}")
-                }
-            }
-        }
-    }
-
-    @ReactMethod
-    fun startBTDiscovery(promise: Promise){
-        println("In printer StartBT Discovery")
-        val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
-        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-        println("Is bluetooth adapter enabled? ${bluetoothAdapter?.isEnabled}")
-        if (bluetoothAdapter?.isEnabled == false) {
-            println("Bluetooth not Enabled")
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            this.currentActivity?.let { startActivityForResult(it,enableBtIntent, 1,null)
-            }
-        }
-
-        val discovery=bluetoothAdapter!!.startDiscovery()
-        println("Discovery started : ${discovery}")
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        this.reactApplicationContext.registerReceiver(receiver, filter)
-        println("Receiver Registered")
-        promise.resolve("Success")
-    }
     val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
     val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
     private val bluetoothLeScanner = bluetoothAdapter!!.bluetoothLeScanner
@@ -300,6 +256,20 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             super.onScanResult(callbackType, result)
             println("Is device null? ${result.device==null}")
             println("This is BLE Device Address ${result.device.address}")
+            if (ActivityCompat.checkSelfPermission(
+                    this@PrinterModule.reactApplicationContext,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                throw IOException("Error:Bluetooth Connect Permission Not Given")
+            }
             println("This is BLE Device Name ${result.device.name}")
         }
     }
@@ -310,6 +280,14 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             if (!scanning) { // Stops scanning after a pre-defined scan period.
                 handler.postDelayed({
                     scanning = false
+                    if (ActivityCompat.checkSelfPermission(
+                            this.reactApplicationContext,
+                            Manifest.permission.BLUETOOTH_SCAN
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        promise.reject("Bluetoth Scan Permission","Not GrantedΩ")
+
+                    }
                     bluetoothLeScanner.stopScan(leScanCallback)
                 }, SCAN_PERIOD)
                 scanning = true
