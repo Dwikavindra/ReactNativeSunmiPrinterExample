@@ -7,22 +7,16 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import androidx.core.app.ActivityCompat
-import androidx.core.app.ActivityCompat.startActivityForResult
-import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -37,6 +31,9 @@ import com.izettle.html2bitmap.content.WebViewContent
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.InetAddress
+import java.util.SortedSet
+import java.util.TreeSet
+import com.facebook.react.bridge.Arguments
 
 
 class CoffeeImageAndroidImpl(private val bitmap: Bitmap) : CoffeeImage {
@@ -249,11 +246,13 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     // Stops scanning after 10 seconds.
     private val SCAN_PERIOD: Long = 10000
+    private val blescanResults:SortedSet<BluetoothDevice> = TreeSet()
     // Device scan callback.
 
     private val leScanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
+            blescanResults.add(result.device)
             println("Is device null? ${result.device==null}")
             println("This is BLE Device Address ${result.device.address}")
             if (ActivityCompat.checkSelfPermission(
@@ -261,23 +260,32 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
                 throw IOException("Error:Bluetooth Connect Permission Not Given")
             }
             println("This is BLE Device Name ${result.device.name}")
         }
     }
+    private fun SetBLEDevicestoWriteableArray(bleDevices:Set<BluetoothDevice>):WritableArray{
+        val result:WritableArray = Arguments.createArray()
+        for(bleDevice in bleDevices){
+            if (ActivityCompat.checkSelfPermission(
+                    this.reactApplicationContext,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                throw IOException("Error:Bluetooth Connect Permission Not Given")
+            }
+            result.pushString(bleDevice.name)
+        }
+        return result
 
+    }
     @ReactMethod
     private fun scanLeDevice(promise:Promise) {
         Thread {
             if (!scanning) { // Stops scanning after a pre-defined scan period.
+
+                /// run this commmand below after 10 seconds
                 handler.postDelayed({
                     scanning = false
                     if (ActivityCompat.checkSelfPermission(
@@ -289,14 +297,14 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
                     }
                     bluetoothLeScanner.stopScan(leScanCallback)
+                    val result:WritableArray = SetBLEDevicestoWriteableArray(blescanResults)
+                    promise.resolve(result)
                 }, SCAN_PERIOD)
                 scanning = true
                 bluetoothLeScanner.startScan(leScanCallback)
-                promise.resolve("Success")
             } else {
                 scanning = false
-                bluetoothLeScanner.stopScan(leScanCallback)
-                promise.resolve("Success")
+                bluetoothLeScanner.stopScan(leScanCallback);
             }
         }.start()
     }
