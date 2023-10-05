@@ -4,6 +4,9 @@ package com.printersdktest
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -248,7 +251,12 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     private val SCAN_PERIOD: Long = 10000
     private val blescanResults:SortedSet<BluetoothDevice> = TreeSet()
     // Device scan callback.
+    private val serverCallBack:BluetoothGattCallback= object:BluetoothGattCallback(){
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            super.onConnectionStateChange(gatt, status, newState)
 
+        }
+    }
     private val leScanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
@@ -309,5 +317,31 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }.start()
     }
 
+    private fun checkBluetoothConnectPermission():Boolean{
+        if (ActivityCompat.checkSelfPermission(
+                this.reactApplicationContext,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+           throw IOException("Error: Bluetooth Connect Permission not Granted ")
+        }
+        return true
+
+    }
+    private fun findBleDevice(deviceName:String): BluetoothDevice? {
+        if(checkBluetoothConnectPermission()){
+            return blescanResults.find { device->
+                device.name===deviceName }
+        }
+        throw Error("Device not found")
+    }
+    @ReactMethod
+    private fun connectToBlEDevice(promise:Promise, deviceName:String){
+//        val bleDevice:BluetoothDevice = findBleDevice(deviceName)!!
+//        if(checkBluetoothConnectPermission()){
+//            bleDevice.connectGatt(this.reactApplicationContext,false,serverCallBack)
+//        }
+
+    }
 
 }
