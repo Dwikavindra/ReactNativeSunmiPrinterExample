@@ -160,8 +160,6 @@ dependencies {
     implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.2.0'
     implementation 'com.github.anastaciocintra:escpos-coffee:4.1.0'
     implementation 'com.izettle:html2bitmap:1.9'
-    implementation "no.nordicsemi.android.kotlin.ble:scanner:1.0.5"
-
     debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
         exclude group:'com.squareup.okhttp3', module:'okhttp'

@@ -320,13 +320,13 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return true
 
     }
-    private fun findBleDevice(deviceName:String): BluetoothDevice? {
-        if(checkBluetoothConnectPermission()){
-            return blescanResults.find { device->
-                device.name===deviceName }
-        }
-        throw Error("Device not found")
-    }
+    // private fun findBleDevice(deviceName:String): BluetoothDevice? {
+    //     if(checkBluetoothConnectPermission()){
+    //         return blescanResults.find { device->
+    //             device.name===deviceName }
+    //     }
+    //     throw Error("Device not found")
+    // }
     @ReactMethod
     private fun connectToBlEDevice(promise:Promise, deviceName:String){
 //        val bleDevice:BluetoothDevice = findBleDevice(deviceName)!!
