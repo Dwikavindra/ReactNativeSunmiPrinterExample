@@ -23,10 +23,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
+import com.beepiz.bluetooth.gattcoroutines.GattConnection
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.github.anastaciocintra.escpos.EscPos
@@ -37,9 +39,17 @@ import com.github.anastaciocintra.escpos.image.RasterBitImageWrapper
 import com.github.anastaciocintra.output.TcpIpOutputStream
 import com.izettle.html2bitmap.Html2Bitmap
 import com.izettle.html2bitmap.content.WebViewContent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.InetAddress
+import java.util.Arrays
+import java.util.SortedSet
+import java.util.TreeSet
 
 
 class CoffeeImageAndroidImpl(private val bitmap: Bitmap) : CoffeeImage {
@@ -249,6 +259,8 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     private val bluetoothLeScanner = bluetoothAdapter!!.bluetoothLeScanner
     private var scanning = false
     private val handler = Handler(Looper.getMainLooper())
+    private val blescanResults: SortedSet<BluetoothDevice> = TreeSet()
+    val myPluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Stops scanning after 10 seconds.
     private val SCAN_PERIOD: Long = 10000
@@ -262,24 +274,30 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     private val leScanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
-            println("Is device null? ${result.device==null}")
-            println("This is BLE Device Address ${result.device.address}")
+            if(checkBluetoothConnectPermission()){
+                println("Is device null? ${result.device==null}")
+                println("This is BLE Device Address ${result.device.address}")
+                println("This is BLE Device Name ${result.device.name}")
+                this@PrinterModule.blescanResults.add(result.device)
+            }
+
+        }
+    }
+
+    private fun SetBLEDevicestoWriteableArray(bleDevices:Set<BluetoothDevice>):WritableArray{
+        val result:WritableArray = Arguments.createArray()
+        for(bleDevice in bleDevices){
             if (ActivityCompat.checkSelfPermission(
-                    this@PrinterModule.reactApplicationContext,
+                    this.reactApplicationContext,
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
                 throw IOException("Error:Bluetooth Connect Permission Not Given")
             }
-            println("This is BLE Device Name ${result.device.name}")
+            result.pushString(bleDevice.name)
         }
+        return result
+
     }
 
     @ReactMethod
@@ -297,17 +315,75 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
                     }
                     bluetoothLeScanner.stopScan(leScanCallback)
+                    val result:WritableArray=SetBLEDevicestoWriteableArray(blescanResults)
+                    promise.resolve(result)
                 }, SCAN_PERIOD)
                 scanning = true
                 bluetoothLeScanner.startScan(leScanCallback)
-                promise.resolve("Success")
+                println("Scan Started")
             } else {
                 scanning = false
                 bluetoothLeScanner.stopScan(leScanCallback)
-                promise.resolve("Success")
+                promise.resolve("Bluetooth scan went over the time limit failed")
             }
         }.start()
     }
+    private val sdpReceiver = object : BroadcastReceiver() {
+
+        override fun onReceive(context: Context, intent: Intent) {
+            val action: String? = intent.action
+            when(action) {
+                BluetoothDevice.ACTION_UUID -> {
+                    // Discovery has found a device. Get the BluetoothDevice
+                    // object and its info from the Intent.
+                    val device =
+                        intent.getParcelableArrayExtra("android.bluetooth.device.extra.UUID")
+                    println("this printer uuid ${Arrays.toString(device)}")
+                }
+            }
+        }
+    }
+    private val receiver = object : BroadcastReceiver() {
+
+        override fun onReceive(context: Context, intent: Intent) {
+            val action: String? = intent.action
+            when(action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    // Discovery has found a device. Get the BluetoothDevice
+                    // object and its info from the Intent.
+                    val device: BluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)!!
+                    if(checkBluetoothConnectPermission()){
+
+                    val deviceName = device.name
+                    val deviceHardwareAddress = device.address // MAC addressprintln("Bluetooth Normal Scan This is deviceName ${deviceName}")
+                        println("Bluetooth Normal Scan This is deviceName ${deviceHardwareAddress}")
+                        println("Bluetooth uuids, ${device.uuids}")
+                        if(deviceHardwareAddress=="0C:25:76:CB:B8:CF"){
+                            println("Received printer MAC address ")
+                        device.fetchUuidsWithSdp()
+                            val filter = IntentFilter(BluetoothDevice.ACTION_UUID)
+                            this@PrinterModule.reactApplicationContext.registerReceiver(sdpReceiver, filter)
+
+
+                        }
+
+                }
+            }
+        }
+    }
+        }
+
+    @ReactMethod
+    private fun scanBLDevice(promise:Promise) {
+            if(checkBluetoothScanPermission()) {
+                val isStarted = bluetoothAdapter?.startDiscovery()
+                val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+                this.reactApplicationContext.registerReceiver(receiver, filter)
+                promise.resolve("start discovery started")
+            }
+    }
+
 
     private fun checkBluetoothConnectPermission():Boolean{
         if (ActivityCompat.checkSelfPermission(
@@ -315,21 +391,64 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 Manifest.permission.BLUETOOTH_CONNECT
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-           throw IOException("Error: Bluetooth Connect Permission not Granted ")
+            ActivityCompat.requestPermissions(this.currentActivity!!,
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
+                1)
         }
         return true
 
     }
-    // private fun findBleDevice(deviceName:String): BluetoothDevice? {
-    //     if(checkBluetoothConnectPermission()){
-    //         return blescanResults.find { device->
-    //             device.name===deviceName }
-    //     }
-    //     throw Error("Device not found")
-    // }
+    private fun checkBluetoothScanPermission():Boolean{
+        if (ActivityCompat.checkSelfPermission(
+                this.reactApplicationContext,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(this.currentActivity!!,
+                arrayOf(Manifest.permission.BLUETOOTH_SCAN),
+                1)
+        }
+        return true
+
+    }
+     private fun findBleDevice(deviceName:String): BluetoothDevice? {
+         if(checkBluetoothConnectPermission()){
+             return blescanResults.find { device->
+                 device.name===deviceName }
+         }
+         throw Error("Device not found")
+     }
+
     @ReactMethod
-    private fun connectToBlEDevice(promise:Promise, deviceName:String){
-//        val bleDevice:BluetoothDevice = findBleDevice(deviceName)!!
+    private fun connectToBLEDevice(promise:Promise, deviceName:String){
+        val bleDevice:BluetoothDevice = findBleDevice(deviceName)!!
+        if(checkBluetoothConnectPermission()){
+        val deviceConnection= GattConnection(bleDevice)
+
+            myPluginScope.launch {
+                try{
+                    val tryConnection= withContext(context=Dispatchers.IO){
+                        deviceConnection.connect()
+                        val gattServices = deviceConnection.discoverServices() // Suspends until completed
+                        gattServices.forEach {
+                            it.characteristics.forEach {
+                                try {
+                                    deviceConnection.readCharacteristic(it) // Suspends until characteristic is read
+                                } catch (e: Exception) {
+                                    println( "Couldn't read characteristic with uuid: ${it.uuid} ${e}")
+                                }
+                            }
+                            println(it.print(printCharacteristics = true))
+                        }
+                    }
+                }catch(e:Exception){
+                    promise.reject("Device Connection Error",e)
+                }
+
+            }
+
+
+        }
 //        if(checkBluetoothConnectPermission()){
 //            bleDevice.connectGatt(this.reactApplicationContext,false,serverCallBack)
 //        }

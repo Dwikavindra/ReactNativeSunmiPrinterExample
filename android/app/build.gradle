@@ -162,6 +162,7 @@ dependencies {
     implementation 'com.izettle:html2bitmap:1.9'
     implementation("com.beepiz.blegattcoroutines:blegattcoroutines-core:0.5.0")
 implementation("com.beepiz.blegattcoroutines:blegattcoroutines-genericaccess:0.5.0")
+    implementation("com.louiscad.splitties:splitties-fun-pack-android-base:3.0.0")
     debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
         exclude group:'com.squareup.okhttp3', module:'okhttp'

@@ -68,9 +68,9 @@ export const convertHTMLtoBase64 = async (html: string) => {
     return error;
   }
 };
-export const startBTDiscovery = async () => {
+export const scanBLDevice = async () => {
   try {
-    return await PrinterModule.startBTDiscovery();
+    return await PrinterModule.scanBLDevice();
   } catch (error) {
     return error;
   }
@@ -78,6 +78,14 @@ export const startBTDiscovery = async () => {
 export const scanLeDevice = async () => {
   try {
     return await PrinterModule.scanLeDevice();
+  } catch (error) {
+    return error;
+  }
+};
+
+export const connectoBLEDevice = async (deviceName: string) => {
+  try {
+    return await PrinterModule.connectToBLEDevice(deviceName);
   } catch (error) {
     return error;
   }
