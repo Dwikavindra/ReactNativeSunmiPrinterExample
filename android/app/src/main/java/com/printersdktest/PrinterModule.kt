@@ -290,23 +290,15 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     private fun SetBLEDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
         val result:WritableArray = Arguments.createArray()
-        for(bleDevice in bleDevices){
-            if (ActivityCompat.checkSelfPermission(
-                    this.reactApplicationContext,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                val permission:String=android.Manifest.permission.BLUETOOTH_CONNECT
-                ActivityCompat.requestPermissions(this.currentActivity!!,arrayOf(permission),1)
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
+
+        if(checkBluetoothConnectPermission()) {
+            for (bleDevice in bleDevices) {
+                if(bleDevice.bluetoothDevice.name!==null)
+                    result.pushString(bleDevice.bluetoothDevice.name)
+                else
+                    result.pushString(bleDevice.bluetoothDevice.address)
+
             }
-            result.pushString(bleDevice.bluetoothDevice?.name)
         }
         return result
 
@@ -349,12 +341,12 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 BluetoothDevice.ACTION_FOUND -> {
                     // Discovery has found a device. Get the BluetoothDevice
                     // object and its info from the Intent.
-                    val device: BluetoothDevice? =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    val device: BluetoothDevice=
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)!!
                     val deviceComparable:BluetoothDeviceComparable=BluetoothDeviceComparable(device)
-                    if(checkBluetoothConnectPermission()){
-                        this@PrinterModule.blescanResults.add(deviceComparable)
-                }
+                    this@PrinterModule.blescanResults.add(deviceComparable)
+                    println("This is blescanResults size, ${this@PrinterModule.blescanResults.size}")
+
             }
         }
     }

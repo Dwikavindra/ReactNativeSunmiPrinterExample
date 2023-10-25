@@ -1,20 +1,16 @@
 package com.printersdktest
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 
-class BluetoothDeviceComparable(device:BluetoothDevice?):Comparable<BluetoothDeviceComparable> {
+class BluetoothDeviceComparable(device:BluetoothDevice):Comparable<BluetoothDeviceComparable> {
     val bluetoothDevice=device
-    val address=device?.address
+
+    @SuppressLint("MissingPermission")
     override fun compareTo(other: BluetoothDeviceComparable): Int {
-        if(this.address===null || other.address==null){
-            return 0
+        if(this.bluetoothDevice.name == other.bluetoothDevice.name || (this.bluetoothDevice.name==null || other.bluetoothDevice.name==null) ){
+            return this.bluetoothDevice.address.compareTo(other.bluetoothDevice.address)
         }
-        return if(this.address.length>other.address.length){
-            1
-        } else if(this.address.length< other.address?.length) {
-            -1
-        }else{
-            0
-        }
+        return this.bluetoothDevice.name.compareTo(other.bluetoothDevice.name)
     }
 }
