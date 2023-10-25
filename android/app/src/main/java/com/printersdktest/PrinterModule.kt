@@ -24,6 +24,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.ContextCompat
@@ -286,6 +287,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 //        }
 //    }
 
+
     private fun SetBLEDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
         val result:WritableArray = Arguments.createArray()
         for(bleDevice in bleDevices){
@@ -294,7 +296,15 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                throw IOException("Error:Bluetooth Connect Permission Not Given")
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                val permission:String=android.Manifest.permission.BLUETOOTH_CONNECT
+                ActivityCompat.requestPermissions(this.currentActivity!!,arrayOf(permission),1)
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
             }
             result.pushString(bleDevice.bluetoothDevice?.name)
         }

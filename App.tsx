@@ -189,7 +189,8 @@ function App(): JSX.Element {
               );
               console.log('This is granted', granted);
               if (granted) {
-                await scanBLDevice();
+                const results = await scanBLDevice();
+                console.log(results);
               }
             }}
           />
