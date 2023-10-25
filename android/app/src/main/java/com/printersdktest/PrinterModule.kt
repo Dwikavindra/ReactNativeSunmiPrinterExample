@@ -262,6 +262,8 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     private val blescanResults: SortedSet<BluetoothDevice> = TreeSet()
     val myPluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val UUID= " 00001101-0000-1000-8000-00805F9B34FB"
+
     // Stops scanning after 10 seconds.
     private val SCAN_PERIOD: Long = 10000
     // Device scan callback.
@@ -328,21 +330,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             }
         }.start()
     }
-    private val sdpReceiver = object : BroadcastReceiver() {
 
-        override fun onReceive(context: Context, intent: Intent) {
-            val action: String? = intent.action
-            when(action) {
-                BluetoothDevice.ACTION_UUID -> {
-                    // Discovery has found a device. Get the BluetoothDevice
-                    // object and its info from the Intent.
-                    val device =
-                        intent.getParcelableArrayExtra("android.bluetooth.device.extra.UUID")
-                    println("this printer uuid ${Arrays.toString(device)}")
-                }
-            }
-        }
-    }
     private val receiver = object : BroadcastReceiver() {
 
         override fun onReceive(context: Context, intent: Intent) {
@@ -354,20 +342,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     val device: BluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)!!
                     if(checkBluetoothConnectPermission()){
-
-                    val deviceName = device.name
-                    val deviceHardwareAddress = device.address // MAC addressprintln("Bluetooth Normal Scan This is deviceName ${deviceName}")
-                        println("Bluetooth Normal Scan This is deviceName ${deviceHardwareAddress}")
-                        println("Bluetooth uuids, ${device.uuids}")
-                        if(deviceHardwareAddress=="0C:25:76:CB:B8:CF"){
-                            println("Received printer MAC address ")
-                        device.fetchUuidsWithSdp()
-                            val filter = IntentFilter(BluetoothDevice.ACTION_UUID)
-                            this@PrinterModule.reactApplicationContext.registerReceiver(sdpReceiver, filter)
-
-
-                        }
-
+                        this@PrinterModule.blescanResults.add(device)
                 }
             }
         }
@@ -381,6 +356,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
                 this.reactApplicationContext.registerReceiver(receiver, filter)
                 promise.resolve("start discovery started")
+                val result:WritableArray=SetBLEDevicestoWriteableArray(blescanResults)
             }
     }
 
@@ -418,41 +394,5 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
          }
          throw Error("Device not found")
      }
-
-    @ReactMethod
-    private fun connectToBLEDevice(promise:Promise, deviceName:String){
-        val bleDevice:BluetoothDevice = findBleDevice(deviceName)!!
-        if(checkBluetoothConnectPermission()){
-        val deviceConnection= GattConnection(bleDevice)
-
-            myPluginScope.launch {
-                try{
-                    val tryConnection= withContext(context=Dispatchers.IO){
-                        deviceConnection.connect()
-                        val gattServices = deviceConnection.discoverServices() // Suspends until completed
-                        gattServices.forEach {
-                            it.characteristics.forEach {
-                                try {
-                                    deviceConnection.readCharacteristic(it) // Suspends until characteristic is read
-                                } catch (e: Exception) {
-                                    println( "Couldn't read characteristic with uuid: ${it.uuid} ${e}")
-                                }
-                            }
-                            println(it.print(printCharacteristics = true))
-                        }
-                    }
-                }catch(e:Exception){
-                    promise.reject("Device Connection Error",e)
-                }
-
-            }
-
-
-        }
-//        if(checkBluetoothConnectPermission()){
-//            bleDevice.connectGatt(this.reactApplicationContext,false,serverCallBack)
-//        }
-
-    }
 
 }
