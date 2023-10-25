@@ -352,11 +352,29 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     private fun scanBLDevice(promise:Promise) {
             if(checkBluetoothScanPermission()) {
-                val isStarted = bluetoothAdapter?.startDiscovery()
-                val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-                this.reactApplicationContext.registerReceiver(receiver, filter)
-                promise.resolve("start discovery started")
-                val result:WritableArray=SetBLEDevicestoWriteableArray(blescanResults)
+                Thread {
+
+                    if(!scanning){
+                        handler.postDelayed({
+                            scanning=false
+                            bluetoothAdapter?.cancelDiscovery()
+                            val result: WritableArray = SetBLEDevicestoWriteableArray(blescanResults)
+                            Log.d("Printer Module"," Bluetooth Discovery Returned with Results")
+                            promise.resolve(result);
+                        },SCAN_PERIOD)
+                        scanning=true
+                        bluetoothAdapter?.startDiscovery()
+                        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+                        this.reactApplicationContext.registerReceiver(receiver, filter)
+                        Log.d("Printer Module"," Bluetooth Discovery Started")
+                    }else{
+                        scanning=false
+                        bluetoothAdapter?.cancelDiscovery()
+                        Log.d("Printer Module","Bluetooth Discovery went over the time limit")
+                        promise.reject("Printer Module","Bluetooth Discovery went over the time limit")
+                    }
+
+                }.start()
             }
     }
 
@@ -387,12 +405,5 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return true
 
     }
-     private fun findBleDevice(deviceName:String): BluetoothDevice? {
-         if(checkBluetoothConnectPermission()){
-             return blescanResults.find { device->
-                 device.name===deviceName }
-         }
-         throw Error("Device not found")
-     }
 
 }
