@@ -21,7 +21,6 @@ class BluetoothStream(device:BluetoothDevice, private val promise: Promise): Pip
     private val MY_UUID= "00001101-0000-1000-8000-00805F9B34FB"
     private var threadPrint: Thread? = null
     private var mmSocket: BluetoothSocket?=null
-    private var isRunning=true;
     var uncaughtException =
         Thread.UncaughtExceptionHandler { t: Thread?, e: Throwable ->
             Logger.getLogger(
@@ -35,7 +34,6 @@ class BluetoothStream(device:BluetoothDevice, private val promise: Promise): Pip
                 println("Not Connected to socket")
             mmSocket?.connect()
             }
-            println("Connected to socket")
             Log.d("Socket Connect","Socket Connect Successful")
             true
         }catch(error:Error){
@@ -50,25 +48,19 @@ class BluetoothStream(device:BluetoothDevice, private val promise: Promise): Pip
         mmSocket= device.createRfcommSocketToServiceRecord(UUID.fromString(MY_UUID))
         pipedInputStream = PipedInputStream()
         super.connect(pipedInputStream)
-        println("First Init Instance")
         val printRunnable=Runnable{
         //connect to BlDevice first
-            println("First Init Runnable")
           if(checkConnect()){
               val mmOutStream: OutputStream = mmSocket!!.outputStream
               val mmBuffer: ByteArray = ByteArray(1024)
               while (true) {
-                  println("here Runnning")
                   val n = pipedInputStream!!.read(mmBuffer)
                   if (n < 0) {
-                      println("Break Initated")
                       break;}
-                  println("here Printing")
                   mmOutStream.write(mmBuffer, 0, n)
                   mmOutStream.flush()
-                  println("write successful")
               }
-              pipedInputStream!!.close()// to get rid of writer dead end
+              pipedInputStream!!.close()
               promise?.resolve("Print Successfully")
           }
         }
