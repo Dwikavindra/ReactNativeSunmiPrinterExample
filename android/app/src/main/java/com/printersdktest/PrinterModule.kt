@@ -389,7 +389,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
             try {
                 val BlDevice=findBLDevice(nameOrAddress)!!
-                currentBluetoothStream = BluetoothStream(BlDevice)
+                currentBluetoothStream = BluetoothStream(BlDevice,this.promise!!)
 
 
             } catch (e: java.lang.Exception) {
@@ -409,7 +409,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     stream!!.closeSocket()// there was a connection before hand
                     //ok it works
                 }
-                stream=BluetoothStream(BlDevice)
+                stream=BluetoothStream(BlDevice,this.promise!!)
                 val escpos= EscPos(stream)
                 val title: Style = Style()
                     .setFontSize(Style.FontSize._3, Style.FontSize._3)
@@ -432,6 +432,34 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
 
 
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+                promise?.reject("Error",e.toString())
+            }
+        }.start()
+
+
+    }
+
+    @ReactMethod
+    private fun printImageByBluetooth(nameOraddress:String,base64Image:String,addresspromise:Promise){
+        this.promise=addresspromise
+        Thread {
+            try {
+                val BlDevice=findBLDevice(nameOraddress)!!
+                if(stream!==null){
+                    stream!!.closeSocket()// there was a connection before hand
+                    //ok it works
+                }
+                stream=BluetoothStream(BlDevice, this.promise!!)
+                val escpos= EscPos(stream)
+                val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
+                val scaledBitmap= Bitmap.createScaledBitmap(bitmap,bitmap.width-40,bitmap.height,true)
+                val algorithm= BitonalOrderedDither()
+                val imageWrapper = RasterBitImageWrapper()
+                val escposImage = EscPosImage(CoffeeImageAndroidImpl(scaledBitmap), algorithm)
+                escpos.write(imageWrapper, escposImage).feed(5).cut(EscPos.CutMode.FULL).close()
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
                 promise?.reject("Error",e.toString())

@@ -28,6 +28,7 @@ import {base64Image} from './base64Image';
 import {
   convertHTMLtoBase64,
   EscPosImageWithTCPConnection,
+  printImageByBluetooth,
   printImageWithTCP2,
   printTextByBluetooth,
   scanBLDevice,
@@ -240,6 +241,16 @@ function App(): JSX.Element {
             title="printTextByBluetooth"
             onPress={async () => {
               const result = await printTextByBluetooth(printerName);
+              console.log(result);
+            }}
+          />
+          <Button
+            title="printImageByBluetooth"
+            onPress={async () => {
+              const result = await printImageByBluetooth(
+                printerName,
+                base64Image,
+              );
               console.log(result);
             }}
           />

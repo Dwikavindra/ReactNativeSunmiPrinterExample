@@ -98,4 +98,14 @@ export const printTextByBluetooth = async (deviceName: string) => {
     return error;
   }
 };
+export const printImageByBluetooth = async (
+  deviceName: string,
+  base64Image: string,
+) => {
+  try {
+    return await PrinterModule.printImageByBluetooth(deviceName, base64Image);
+  } catch (error) {
+    return error;
+  }
+};
 export default PrinterModule;

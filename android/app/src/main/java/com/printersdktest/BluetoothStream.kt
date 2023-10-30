@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
+import com.facebook.react.bridge.Promise
 import java.io.OutputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
@@ -15,7 +16,7 @@ import java.util.logging.Logger
 
 
 @SuppressLint("MissingPermission")
-class BluetoothStream(device:BluetoothDevice): PipedOutputStream() {
+class BluetoothStream(device:BluetoothDevice, private val promise: Promise): PipedOutputStream() {
     private var pipedInputStream: PipedInputStream? = null
     private val MY_UUID= "00001101-0000-1000-8000-00805F9B34FB"
     private var threadPrint: Thread? = null
@@ -38,8 +39,10 @@ class BluetoothStream(device:BluetoothDevice): PipedOutputStream() {
             Log.d("Socket Connect","Socket Connect Successful")
             true
         }catch(error:Error){
+            promise.reject("Error",error.toString())
             Log.e("Socket Connect","Error",error)
             false
+
         }
     }
 
@@ -66,6 +69,7 @@ class BluetoothStream(device:BluetoothDevice): PipedOutputStream() {
                   println("write successful")
               }
               pipedInputStream!!.close()// to get rid of writer dead end
+              promise?.resolve("Print Successfully")
           }
         }
         threadPrint = Thread(printRunnable)
