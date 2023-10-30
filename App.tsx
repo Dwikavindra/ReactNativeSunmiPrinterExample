@@ -61,7 +61,10 @@ function App(): JSX.Element {
   );
   const renderItem = ({item}: {item: printerDevice}) => {
     const backgroundColor =
-      item.name === (currPrinter!!.name as string) ? '#00008B' : 'blue';
+      item.name ===
+      (currPrinter === null ? ' ' : (currPrinter!!.name as string))
+        ? '#00008B'
+        : 'blue';
     return (
       <Item
         item={item}
@@ -102,7 +105,8 @@ function App(): JSX.Element {
           </View>
 
           <Text style={{alignSelf: 'center', fontSize: 20, marginTop: 10}}>
-            Current Printer :{currPrinter!!.name} {currPrinter!!.address}
+            Current Printer :{currPrinter == null ? ' ' : currPrinter.name}{' '}
+            {currPrinter == null ? ' ' : currPrinter.address}
           </Text>
           <Button
             title="Find Bluetooth Printer"

@@ -271,13 +271,14 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     private fun SetBLDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
         val result:WritableArray = Arguments.createArray()
-        val map:WritableMap= Arguments.createMap()
+        var map:WritableMap= Arguments.createMap()
 
         if(checkBluetoothConnectPermission()) {
             for (bleDevice in bleDevices) {
                     map.putString("name",bleDevice.bluetoothDevice.name)
                     map.putString("address",bleDevice.bluetoothDevice.address)
                     result.pushMap(map)
+                    map=Arguments.createMap()
             }
         }
         return result
