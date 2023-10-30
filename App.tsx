@@ -30,9 +30,7 @@ import {
   EscPosImageWithTCPConnection,
   printImageByBluetooth,
   printImageWithTCP2,
-  printTextByBluetooth,
   scanBLDevice,
-  scanLeDevice,
   startNetworkDiscovery,
   stopNetworkDiscovery,
 } from './PrinterModule';
@@ -230,12 +228,11 @@ function App(): JSX.Element {
                 {
                   title: 'Android Scan Permission',
                   message: 'Scan Bluetooth Permission',
-                  buttonNeutral: 'A d dsk Me Later',
+                  buttonNeutral: 'A ask Me Later',
                   buttonNegative: 'Cancel',
                   buttonPositive: 'OK',
                 },
               );
-              console.log('This is granted', granted);
               if (granted) {
                 const results = await scanBLDevice();
                 console.log(results);
@@ -244,13 +241,6 @@ function App(): JSX.Element {
             }}
           />
 
-          <Button
-            title="printTextByBluetooth"
-            onPress={async () => {
-              const result = await printTextByBluetooth(currPrinter!!);
-              console.log(result);
-            }}
-          />
           <Button
             title="printImageByBluetooth"
             onPress={async () => {
@@ -262,125 +252,6 @@ function App(): JSX.Element {
             }}
           />
 
-          <Button
-            title="startLEDiscovery"
-            onPress={async () => {
-              const requestLocationPermissions = async () => {
-                try {
-                  const res = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-                    {
-                      title: 'App asking for Fine Location ',
-                      message: ' App needs access to your Location ',
-                      buttonNeutral: 'Ask Me Later',
-                      buttonNegative: 'Cancel',
-                      buttonPositive: 'OK',
-                    },
-                  );
-                  if (res === PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('You can use the Location');
-                    return true;
-                  } else {
-                    console.log('Location permission denied');
-                    return false;
-                  }
-                } catch (error) {
-                  console.log(error);
-                }
-              };
-
-              const requestBluetoothConnect = async () => {
-                try {
-                  const res = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-                    {
-                      title: 'App asking for Bluetooth Connect  ',
-                      message: ' App needs access to your Bluetooth Connect ',
-                      buttonNeutral: 'Ask Me Later',
-                      buttonNegative: 'Cancel',
-                      buttonPositive: 'OK',
-                    },
-                  );
-                  if (res === PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('You can use the Bluetooth_CONNECT');
-                    return true;
-                  } else {
-                    console.log('You cant use Bluetooth_CONNECT');
-                    return false;
-                  }
-                } catch (error) {
-                  console.log(error);
-                }
-              };
-
-              const requestBluetoothPermission = async () => {
-                try {
-                  const res = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.BLUETOOTH,
-                    {
-                      title: 'App asking for Bluetooth ',
-                      message: ' App needs access to your Bluetooth Scan ',
-                      buttonNeutral: 'Ask Me Later',
-                      buttonNegative: 'Cancel',
-                      buttonPositive: 'OK',
-                    },
-                  );
-                  console.log('this is res in scan', res);
-                  if (res === PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('You can use the Bluetooth');
-                    return true;
-                  } else {
-                    console.log('You cant use Bluetooth');
-                    return false;
-                  }
-                } catch (error) {
-                  console.log(error);
-                }
-              };
-              const requestBluetoothScan = async () => {
-                try {
-                  const res = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-                    {
-                      title: 'App asking for Bluetooth Scan  ',
-                      message: ' App needs access to your Bluetooth Scan ',
-                      buttonNeutral: 'Ask Me Later',
-                      buttonNegative: 'Cancel',
-                      buttonPositive: 'OK',
-                    },
-                  );
-                  console.log('this is res in scan', res);
-                  if (res === PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('You can use the Bluetooth_Scan');
-                    return true;
-                  } else {
-                    console.log('You cant use Bluetooth_Scan');
-                    return false;
-                  }
-                } catch (error) {
-                  console.log(error);
-                }
-              };
-
-              const grantedLocation = await requestLocationPermissions();
-              const grantedBluetoothConnect = await requestBluetoothConnect();
-              const grantedBluetoothScan = await requestBluetoothScan();
-              const bluetoothCheck = await request(
-                PERMISSIONS.ANDROID.BLUETOOTH_CONNECT,
-              );
-
-              console.log('This is grantedLocation', grantedLocation);
-              console.log(
-                'This is grantedBluetoothConnect',
-                grantedBluetoothConnect,
-              );
-              console.log('This is grantedBluetoothScan', grantedBluetoothScan);
-              console.log('This is bluetoothCheck', bluetoothCheck);
-              // await openSettings();
-
-              await scanLeDevice();
-            }}
-          />
           {/* 
           <Image
             style={{width: 576, height: 300, resizeMode: 'contain'}}

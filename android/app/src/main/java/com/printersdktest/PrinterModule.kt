@@ -1,19 +1,14 @@
 
 package com.printersdktest
-
-import android.Manifest
-import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.nsd.NsdManager
@@ -22,13 +17,10 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat.getSystemService
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.github.anastaciocintra.escpos.EscPos
-import com.github.anastaciocintra.escpos.EscPosConst
-import com.github.anastaciocintra.escpos.Style
 import com.github.anastaciocintra.escpos.image.BitonalOrderedDither
 import com.github.anastaciocintra.escpos.image.CoffeeImage
 import com.github.anastaciocintra.escpos.image.EscPosImage
@@ -36,15 +28,10 @@ import com.github.anastaciocintra.escpos.image.RasterBitImageWrapper
 import com.github.anastaciocintra.output.TcpIpOutputStream
 import com.izettle.html2bitmap.Html2Bitmap
 import com.izettle.html2bitmap.content.WebViewContent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.util.SortedSet
 import java.util.TreeSet
-import java.util.UUID
-import java.util.regex.Pattern
 
 
 class CoffeeImageAndroidImpl(private val bitmap: Bitmap) : CoffeeImage {
@@ -67,6 +54,12 @@ class CoffeeImageAndroidImpl(private val bitmap: Bitmap) : CoffeeImage {
 class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     private var promise: Promise? = null
     private var nsdManager:NsdManager?=null
+    val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
+    val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+    private var scanning = false
+    private val handler = Handler(Looper.getMainLooper())
+    private val bleScanResults: SortedSet<BluetoothDeviceComparable> = TreeSet()
+    var stream:BluetoothStream?=null
 
     private fun sendEvent(reactContext: ReactContext, eventName: String, params: WritableMap?) {
         reactContext
@@ -246,15 +239,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
 
 
-    val bluetoothManager: BluetoothManager = getSystemService(this.reactApplicationContext,BluetoothManager::class.java)!!
-    val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    private val bluetoothLeScanner = bluetoothAdapter!!.bluetoothLeScanner
-    private var scanning = false
-    private val handler = Handler(Looper.getMainLooper())
-    private val blescanResults: SortedSet<BluetoothDeviceComparable> = TreeSet()
-    val myPluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    var currentBluetoothStream:BluetoothStream?=null;
-    var stream:BluetoothStream?=null
+
 
 
 
@@ -269,21 +254,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     }
 
 
-    private fun SetBLDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
-        val result:WritableArray = Arguments.createArray()
-        var map:WritableMap= Arguments.createMap()
 
-        if(checkBluetoothConnectPermission()) {
-            for (bleDevice in bleDevices) {
-                    map.putString("name",bleDevice.bluetoothDevice.name)
-                    map.putString("address",bleDevice.bluetoothDevice.address)
-                    result.pushMap(map)
-                    map=Arguments.createMap()
-            }
-        }
-        return result
-
-    }
 
     private val receiver = object : BroadcastReceiver() {
 
@@ -296,7 +267,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     val device: BluetoothDevice=
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)!!
                     val deviceComparable:BluetoothDeviceComparable=BluetoothDeviceComparable(device)
-                    this@PrinterModule.blescanResults.add(deviceComparable)
+                    this@PrinterModule.bleScanResults.add(deviceComparable)
 
             }
         }
@@ -306,14 +277,14 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     private fun scanBLDevice(promise:Promise) {
         this.promise=promise
-            if(checkBluetoothScanPermission()) {
+            if(Helper.checkBluetoothScanPermission(this.reactApplicationContext,this.currentActivity!!)) {
                 Thread {
 
                     if(!scanning){
                         handler.postDelayed({
                             scanning=false
                             bluetoothAdapter?.cancelDiscovery()
-                            val result: WritableArray = SetBLDevicestoWriteableArray(blescanResults)
+                            val result: WritableArray = Helper.SetBLDevicestoWriteableArray(bleScanResults,this.reactApplicationContext,this.currentActivity!!)
                             Log.d("Printer Module"," Bluetooth Discovery Returned with Results")
                             promise.resolve(result);
                         },SCAN_PERIOD)
@@ -332,106 +303,21 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 }.start()
             }
     }
-    private fun isMacAddress(input: String?): Boolean {
-        // Define regular expressions for valid MAC address patterns
-        val macAddressPattern = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
-
-        // Compile the regular expression pattern
-        val pattern: Pattern = Pattern.compile(macAddressPattern)
-
-        // Check if the input matches the pattern
-        return pattern.matcher(input).matches()
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun findBLDevice(nameOraddress: String): BluetoothDevice? {
-        try{
-            val pairedDevices = bluetoothAdapter!!.bondedDevices
-            val pairedDevice= pairedDevices.find {
-                if (isMacAddress(nameOraddress)) {
-                    if (nameOraddress == it.address) {
-                        return it
-                    }
-                    if (it.name == nameOraddress) return it
-                }
-
-                return it
-            }
-            val foundDevice:BluetoothDeviceComparable?=blescanResults.find {
-            if(isMacAddress(nameOraddress)){
-            if(nameOraddress==it.bluetoothDevice.address){
-                return it.bluetoothDevice
-            }
-        }
-            if(it.bluetoothDevice.name==nameOraddress) return it.bluetoothDevice
-
-            return it.bluetoothDevice
-        }
-            if(pairedDevices!==null){
-                return pairedDevice
-            }
-        return foundDevice!!.bluetoothDevice}
-        catch(e:Error){
-            Log.e("Error findBL","BluetoothDevice Not Found")
-            this.promise?.reject("Bluetooth Find","Bluetooth Device Not Found")
-            throw Exception("Bluetooth Device with the name or address ${nameOraddress} Not Found")
-
-        }
-    }
-
-
-
-    @ReactMethod
-    private fun printTextByBluetooth(nameOraddress:String,addresspromise:Promise){
-        this.promise=addresspromise
-        Thread {
-            try {
-                val BlDevice=findBLDevice(nameOraddress)!!
-                if(stream!==null){
-                    stream!!.closeSocket()// there was a connection before hand
-                    //ok it works
-                }
-                stream=BluetoothStream(BlDevice,this.promise!!)
-                val escpos= EscPos(stream)
-                val title: Style = Style()
-                    .setFontSize(Style.FontSize._3, Style.FontSize._3)
-                    .setJustification(EscPosConst.Justification.Center)
-                val subtitle = Style(escpos.style)
-                    .setBold(true)
-                    .setUnderline(Style.Underline.OneDotThick)
-                escpos.writeLF(title,"My Market")
-                    .feed(3)
-                    .write("Client: ")
-                    .writeLF(subtitle, "John Doe")
-                    .feed(3)
-                    .writeLF("Cup of coffee                      $1.00")
-                    .writeLF("Botle of water                     $0.50")
-                    .writeLF("----------------------------------------")
-                    .feed(2).close()// to get rid of write dead this has to be closed
 
 
 
 
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace()
-                promise?.reject("Error",e.toString())
-            }
-        }.start()
-
-
-    }
 
     @ReactMethod
     private fun printImageByBluetooth(nameOraddress:String,base64Image:String,addresspromise:Promise){
         this.promise=addresspromise
         Thread {
             try {
-                val BlDevice=findBLDevice(nameOraddress)!!
+                val blDevice=Helper.findBLDevice(nameOraddress,bluetoothAdapter!!,bleScanResults)!!
                 if(stream!==null){
-                    stream!!.closeSocket()// there was a connection before hand
-                    //ok it works
+                    stream!!.closeSocket()
                 }
-                stream=BluetoothStream(BlDevice, this.promise!!)
+                stream=BluetoothStream(blDevice, this.promise!!)
                 val escpos= EscPos(stream)
                 val encodedBase64 = Base64.decode(base64Image, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(encodedBase64, 0, encodedBase64.size)
@@ -446,33 +332,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             }
         }.start()
 
-
-    }
-
-    private fun checkBluetoothConnectPermission():Boolean{
-        if (ActivityCompat.checkSelfPermission(
-                this.reactApplicationContext,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this.currentActivity!!,
-                arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
-                1)
-        }
-        return true
-
-    }
-    private fun checkBluetoothScanPermission():Boolean{
-        if (ActivityCompat.checkSelfPermission(
-                this.reactApplicationContext,
-                Manifest.permission.BLUETOOTH_SCAN
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this.currentActivity!!,
-                arrayOf(Manifest.permission.BLUETOOTH_SCAN),
-                1)
-        }
-        return true
 
     }
 

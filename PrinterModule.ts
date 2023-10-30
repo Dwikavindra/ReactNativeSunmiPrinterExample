@@ -76,13 +76,6 @@ export const scanBLDevice = async () => {
     return error;
   }
 };
-export const scanLeDevice = async () => {
-  try {
-    return await PrinterModule.scanLeDevice();
-  } catch (error) {
-    return error;
-  }
-};
 
 export const connectoBLEDevice = async (deviceName: string) => {
   try {
@@ -92,13 +85,6 @@ export const connectoBLEDevice = async (deviceName: string) => {
   }
 };
 
-export const printTextByBluetooth = async (device: printerDevice) => {
-  try {
-    return await PrinterModule.printTextByBluetooth(device.name);
-  } catch (error) {
-    return error;
-  }
-};
 export const printImageByBluetooth = async (
   device: printerDevice,
   base64Image: string,
