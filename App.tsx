@@ -41,29 +41,32 @@ import {
   SunmiConnect,
   SunmiPrintImage,
 } from './PrinterModule';
+import {printerDevice} from './printerDevice';
 
 function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const [ipAddress, setIpAddress] = useState<string>('');
-  const [printerName, setPrinterName] = useState<string>('');
+  const [currPrinter, setCurrPrinter] = useState<printerDevice | null>(null);
   const [port, setPort] = useState<string>('');
   const [image, setImage] = useState<string>('');
-  const [devices, setListofDevices] = useState<string[]>([]);
+  const [devices, setListofDevices] = useState<printerDevice[]>([]);
 
   const Item = ({item, onPress, backgroundColor, textColor}: any) => (
     <TouchableOpacity
       onPress={onPress}
       style={[styles.item, {backgroundColor}]}>
-      <Text style={[styles.title, {color: textColor}]}>{item}</Text>
+      <Text style={[styles.title, {color: textColor}]}>{item.name}</Text>
+      <Text style={[styles.title, {color: textColor}]}>{item.address}</Text>
     </TouchableOpacity>
   );
-  const renderItem = ({item}: {item: string}) => {
-    const backgroundColor = item === printerName ? '#00008B' : 'blue';
+  const renderItem = ({item}: {item: printerDevice}) => {
+    const backgroundColor =
+      item.name === (currPrinter!!.name as string) ? '#00008B' : 'blue';
     return (
       <Item
         item={item}
         onPress={async () => {
-          setPrinterName(item);
+          setCurrPrinter(item);
         }}
         backgroundColor={backgroundColor}
         textColor={'white'}
@@ -93,13 +96,13 @@ function App(): JSX.Element {
             <FlatList
               data={devices}
               renderItem={renderItem}
-              keyExtractor={item => item}
-              extraData={printerName}
+              keyExtractor={item => item.address}
+              extraData={currPrinter}
             />
           </View>
 
           <Text style={{alignSelf: 'center', fontSize: 20, marginTop: 10}}>
-            Current Printer :{printerName}
+            Current Printer :{currPrinter!!.name} {currPrinter!!.address}
           </Text>
           <Button
             title="Find Bluetooth Printer"
@@ -223,7 +226,7 @@ function App(): JSX.Element {
                 {
                   title: 'Android Scan Permission',
                   message: 'Scan Bluetooth Permission',
-                  buttonNeutral: 'Ask Me Later',
+                  buttonNeutral: 'A d dsk Me Later',
                   buttonNegative: 'Cancel',
                   buttonPositive: 'OK',
                 },
@@ -240,7 +243,7 @@ function App(): JSX.Element {
           <Button
             title="printTextByBluetooth"
             onPress={async () => {
-              const result = await printTextByBluetooth(printerName);
+              const result = await printTextByBluetooth(currPrinter!!);
               console.log(result);
             }}
           />
@@ -248,7 +251,7 @@ function App(): JSX.Element {
             title="printImageByBluetooth"
             onPress={async () => {
               const result = await printImageByBluetooth(
-                printerName,
+                currPrinter!!,
                 base64Image,
               );
               console.log(result);

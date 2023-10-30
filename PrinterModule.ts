@@ -1,4 +1,5 @@
 import {NativeModules} from 'react-native';
+import {printerDevice} from './printerDevice';
 const {PrinterModule} = NativeModules;
 export const SunmiSetBTPrinter = async () => {
   try {
@@ -91,19 +92,19 @@ export const connectoBLEDevice = async (deviceName: string) => {
   }
 };
 
-export const printTextByBluetooth = async (deviceName: string) => {
+export const printTextByBluetooth = async (device: printerDevice) => {
   try {
-    return await PrinterModule.printTextByBluetooth(deviceName);
+    return await PrinterModule.printTextByBluetooth(device.name);
   } catch (error) {
     return error;
   }
 };
 export const printImageByBluetooth = async (
-  deviceName: string,
+  device: printerDevice,
   base64Image: string,
 ) => {
   try {
-    return await PrinterModule.printImageByBluetooth(deviceName, base64Image);
+    return await PrinterModule.printImageByBluetooth(device.name, base64Image);
   } catch (error) {
     return error;
   }

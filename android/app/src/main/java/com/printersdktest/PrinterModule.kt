@@ -115,7 +115,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
 
         override fun onServiceFound(p0: NsdServiceInfo?) {
-            println("Found")
             nsdManager?.resolveService(p0,  resolveListener)
 
 
@@ -176,9 +175,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 val imageWrapper = RasterBitImageWrapper()
                 val escposImage = EscPosImage(CoffeeImageAndroidImpl(scaledBitmap), algorithm)
                 escpos.write(imageWrapper, escposImage)
-                escpos.feed(5).cut(EscPos.CutMode.FULL)
-                promise.resolve("Print Successfully")
-
+                escpos.feed(5).cut(EscPos.CutMode.FULL).close()
                 promise.resolve("Print Completed")
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
@@ -235,7 +232,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 escpos.write(imageWrapper, escposImage)
                 escpos.cut(EscPos.CutMode.FULL)
                 escpos.close()
-                promise.resolve("Print Successfully")
 
 
 
@@ -273,16 +269,15 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     }
 
 
-    private fun SetBLEDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
+    private fun SetBLDevicestoWriteableArray(bleDevices:Set<BluetoothDeviceComparable>):WritableArray{
         val result:WritableArray = Arguments.createArray()
+        val map:WritableMap= Arguments.createMap()
 
         if(checkBluetoothConnectPermission()) {
             for (bleDevice in bleDevices) {
-                if(bleDevice.bluetoothDevice.name!==null)
-                    result.pushString(bleDevice.bluetoothDevice.name)
-                else
-                    result.pushString(bleDevice.bluetoothDevice.address)
-
+                    map.putString("name",bleDevice.bluetoothDevice.name)
+                    map.putString("address",bleDevice.bluetoothDevice.address)
+                    result.pushMap(map)
             }
         }
         return result
@@ -301,7 +296,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)!!
                     val deviceComparable:BluetoothDeviceComparable=BluetoothDeviceComparable(device)
                     this@PrinterModule.blescanResults.add(deviceComparable)
-                    println("This is blescanResults size, ${this@PrinterModule.blescanResults.size}")
 
             }
         }
@@ -318,7 +312,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                         handler.postDelayed({
                             scanning=false
                             bluetoothAdapter?.cancelDiscovery()
-                            val result: WritableArray = SetBLEDevicestoWriteableArray(blescanResults)
+                            val result: WritableArray = SetBLDevicestoWriteableArray(blescanResults)
                             Log.d("Printer Module"," Bluetooth Discovery Returned with Results")
                             promise.resolve(result);
                         },SCAN_PERIOD)
@@ -384,19 +378,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
     }
 
-    private fun connectToPrinterBL(nameOrAddress:String){
-        this.promise=promise
-
-            try {
-                val BlDevice=findBLDevice(nameOrAddress)!!
-                currentBluetoothStream = BluetoothStream(BlDevice,this.promise!!)
-
-
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace()
-                promise?.reject("Error",e.toString())
-            }
-    }
 
 
     @ReactMethod
@@ -426,8 +407,6 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                     .writeLF("Botle of water                     $0.50")
                     .writeLF("----------------------------------------")
                     .feed(2).close()// to get rid of write dead this has to be closed
-                println("Print Command Sent") // will run first cause write is ran later
-                promise?.resolve("Print Successfully")
 
 
 
