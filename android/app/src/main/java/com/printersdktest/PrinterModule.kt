@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -26,6 +27,8 @@ import androidx.core.content.ContextCompat.getSystemService
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.github.anastaciocintra.escpos.EscPos
+import com.github.anastaciocintra.escpos.EscPosConst
+import com.github.anastaciocintra.escpos.Style
 import com.github.anastaciocintra.escpos.image.BitonalOrderedDither
 import com.github.anastaciocintra.escpos.image.CoffeeImage
 import com.github.anastaciocintra.escpos.image.EscPosImage
@@ -40,6 +43,7 @@ import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.util.SortedSet
 import java.util.TreeSet
+import java.util.UUID
 import java.util.regex.Pattern
 
 
@@ -230,6 +234,7 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 val escposImage = EscPosImage(CoffeeImageAndroidImpl(scaledBitmap), algorithm)
                 escpos.write(imageWrapper, escposImage)
                 escpos.cut(EscPos.CutMode.FULL)
+                escpos.close()
                 promise.resolve("Print Successfully")
 
 
@@ -252,6 +257,8 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     private val handler = Handler(Looper.getMainLooper())
     private val blescanResults: SortedSet<BluetoothDeviceComparable> = TreeSet()
     val myPluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    var currentBluetoothStream:BluetoothStream?=null;
+    var stream:BluetoothStream?=null
 
 
 
@@ -344,7 +351,18 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @SuppressLint("MissingPermission")
     private fun findBLDevice(nameOraddress: String): BluetoothDevice? {
         try{
-        val foundDevice:BluetoothDeviceComparable?=blescanResults.find {
+            val pairedDevices = bluetoothAdapter!!.bondedDevices
+            val pairedDevice= pairedDevices.find {
+                if (isMacAddress(nameOraddress)) {
+                    if (nameOraddress == it.address) {
+                        return it
+                    }
+                    if (it.name == nameOraddress) return it
+                }
+
+                return it
+            }
+            val foundDevice:BluetoothDeviceComparable?=blescanResults.find {
             if(isMacAddress(nameOraddress)){
             if(nameOraddress==it.bluetoothDevice.address){
                 return it.bluetoothDevice
@@ -354,6 +372,9 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
             return it.bluetoothDevice
         }
+            if(pairedDevices!==null){
+                return pairedDevice
+            }
         return foundDevice!!.bluetoothDevice}
         catch(e:Error){
             Log.e("Error findBL","BluetoothDevice Not Found")
@@ -363,18 +384,51 @@ class PrinterModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
     }
 
+    private fun connectToPrinterBL(nameOrAddress:String){
+        this.promise=promise
+
+            try {
+                val BlDevice=findBLDevice(nameOrAddress)!!
+                currentBluetoothStream = BluetoothStream(BlDevice)
+
+
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+                promise?.reject("Error",e.toString())
+            }
+    }
+
+
     @ReactMethod
     private fun printTextByBluetooth(nameOraddress:String,addresspromise:Promise){
-        this.promise=promise
+        this.promise=addresspromise
         Thread {
             try {
-
                 val BlDevice=findBLDevice(nameOraddress)!!
-                val  stream = BluetoothStream(BlDevice)
+                if(stream!==null){
+                    stream!!.closeSocket()// there was a connection before hand
+                    //ok it works
+                }
+                stream=BluetoothStream(BlDevice)
                 val escpos= EscPos(stream)
-                escpos.write("Hello")
-                escpos.cut(EscPos.CutMode.FULL)
+                val title: Style = Style()
+                    .setFontSize(Style.FontSize._3, Style.FontSize._3)
+                    .setJustification(EscPosConst.Justification.Center)
+                val subtitle = Style(escpos.style)
+                    .setBold(true)
+                    .setUnderline(Style.Underline.OneDotThick)
+                escpos.writeLF(title,"My Market")
+                    .feed(3)
+                    .write("Client: ")
+                    .writeLF(subtitle, "John Doe")
+                    .feed(3)
+                    .writeLF("Cup of coffee                      $1.00")
+                    .writeLF("Botle of water                     $0.50")
+                    .writeLF("----------------------------------------")
+                    .feed(2).close()// to get rid of write dead this has to be closed
+                println("Print Command Sent") // will run first cause write is ran later
                 promise?.resolve("Print Successfully")
+
 
 
 

@@ -90,4 +90,12 @@ export const connectoBLEDevice = async (deviceName: string) => {
     return error;
   }
 };
+
+export const printTextByBluetooth = async (deviceName: string) => {
+  try {
+    return await PrinterModule.printTextByBluetooth(deviceName);
+  } catch (error) {
+    return error;
+  }
+};
 export default PrinterModule;

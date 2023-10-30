@@ -10,11 +10,15 @@ import React, {useState} from 'react';
 import {
   Button,
   DeviceEventEmitter,
+  FlatList,
   Image,
   PermissionsAndroid,
   SafeAreaView,
   ScrollView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
   useColorScheme,
   View,
 } from 'react-native';
@@ -25,6 +29,7 @@ import {
   convertHTMLtoBase64,
   EscPosImageWithTCPConnection,
   printImageWithTCP2,
+  printTextByBluetooth,
   scanBLDevice,
   scanLeDevice,
   startNetworkDiscovery,
@@ -39,8 +44,31 @@ import {
 function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const [ipAddress, setIpAddress] = useState<string>('');
+  const [printerName, setPrinterName] = useState<string>('');
   const [port, setPort] = useState<string>('');
   const [image, setImage] = useState<string>('');
+  const [devices, setListofDevices] = useState<string[]>([]);
+
+  const Item = ({item, onPress, backgroundColor, textColor}: any) => (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.item, {backgroundColor}]}>
+      <Text style={[styles.title, {color: textColor}]}>{item}</Text>
+    </TouchableOpacity>
+  );
+  const renderItem = ({item}: {item: string}) => {
+    const backgroundColor = item === printerName ? '#00008B' : 'blue';
+    return (
+      <Item
+        item={item}
+        onPress={async () => {
+          setPrinterName(item);
+        }}
+        backgroundColor={backgroundColor}
+        textColor={'white'}
+      />
+    );
+  };
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -60,6 +88,18 @@ function App(): JSX.Element {
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
+          <View style={{borderWidth: 5, height: 300}}>
+            <FlatList
+              data={devices}
+              renderItem={renderItem}
+              keyExtractor={item => item}
+              extraData={printerName}
+            />
+          </View>
+
+          <Text style={{alignSelf: 'center', fontSize: 20, marginTop: 10}}>
+            Current Printer :{printerName}
+          </Text>
           <Button
             title="Find Bluetooth Printer"
             onPress={async () => {
@@ -191,7 +231,16 @@ function App(): JSX.Element {
               if (granted) {
                 const results = await scanBLDevice();
                 console.log(results);
+                setListofDevices(results);
               }
+            }}
+          />
+
+          <Button
+            title="printTextByBluetooth"
+            onPress={async () => {
+              const result = await printTextByBluetooth(printerName);
+              console.log(result);
             }}
           />
 
@@ -314,17 +363,48 @@ function App(): JSX.Element {
               await scanLeDevice();
             }}
           />
-
+          {/* 
           <Image
             style={{width: 576, height: 300, resizeMode: 'contain'}}
             source={{
               uri: `data:image/png;base64,${image}`,
             }}
-          />
+          /> */}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionContainer: {
+    marginTop: 32,
+    paddingHorizontal: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  sectionDescription: {
+    marginTop: 8,
+    fontSize: 18,
+    fontWeight: '400',
+  },
+  highlight: {
+    fontWeight: '700',
+  },
+  item: {
+    flex: 1,
+    padding: 20,
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  title: {
+    fontSize: 10,
+  },
+  devicesContainer: {
+    height: '300',
+  },
+});
 
 export default App;
